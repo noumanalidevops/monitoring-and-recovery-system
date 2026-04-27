@@ -1,0 +1,23 @@
+# Yahan hum Prometheus ko bata rahe hain kahan se data uthana hai
+
+global:
+  scrape_interval: 15s      # Har 15 second mein data uthao
+  evaluation_interval: 15s  # Har 15 second mein rules check karo
+
+scrape_configs:
+  # Prometheus khud ko bhi monitor karta hai
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Hamari FastAPI app ko monitor karo
+  - job_name: 'fastapi-app'
+    static_configs:
+      - targets: ['app:8000']  # 'app' Docker Compose service ka naam hai
+    metrics_path: '/metrics'    # Yahan se data uthao
+
+  # AI Service ko monitor karo
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:8001']
+    metrics_path: '/metrics'

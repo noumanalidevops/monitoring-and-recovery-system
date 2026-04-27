@@ -1,0 +1,192 @@
+version: '3.8'
+
+# Ye ek private network hai — sab containers is mein baat kar sakte hain
+networks:
+  monitoring:
+    driver: bridge
+
+# Shared storage volumes
+volumes:
+  elasticsearch-data:
+  prometheus-data:
+  ai-models:
+
+services:
+
+  # ================================================
+  # 1. HAMARI PYTHON APP
+  # ================================================
+  app:
+    build: ./app          # ./app/Dockerfile se build karo
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"        # Bahar se localhost:8000 pe accessible
+    networks:
+      - monitoring
+    healthcheck:
+      # Har 30 second mein /health check karo
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped   # Crash ho to khud restart karo
+
+  # ================================================
+  # 2. PROMETHEUS — METRICS COLLECTOR
+  # ================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0    # Official Docker image
+    container_name: prometheus
+    ports:
+      - "9091:9090"        # localhost:9090 pe dashboard
+    volumes:
+      # Hamari config file container ke andar daalo
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      # Data persist karne ke liye
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'   # 15 din ka data rakho
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 3. GRAFANA — VISUALIZATION
+  # ================================================
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    ports:
+      - "3000:3000"        # localhost:3000 pe dashboard
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123    # Default password
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 4. ELASTICSEARCH — LOG STORAGE
+  # ================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node     # Single machine ke liye
+      - xpack.security.enabled=false   # Dev mein security off
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"   # 512MB RAM use karo
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 5. KIBANA — LOG VISUALIZATION
+  # ================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    ports:
+      - "5601:5601"        # localhost:5601 pe dashboard
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch       # Pehle Elasticsearch start ho
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 6. LOGSTASH — LOG PROCESSOR
+  # ================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash
+    volumes:
+      - ./monitoring/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+    depends_on:
+      - elasticsearch
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 7. AI SERVICE — ANOMALY DETECTION
+  # ================================================
+  ai-service:
+    build: ./ai-service
+    container_name: ai-service
+    ports:
+      - "8001:8001"
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - MODEL_DIR=/models
+      - MODEL_MAX_AGE_HOURS=24
+      - RETRAIN_INTERVAL_HOURS=24
+      - RETRAIN_COOLDOWN_SECONDS=900
+      - BOOTSTRAP_RETRY_SECONDS=60
+      - DRIFT_WINDOW_SIZE=60
+      - DRIFT_ZSCORE_THRESHOLD=2.5
+      - DRIFT_CONSECUTIVE_LIMIT=5
+    volumes:
+      - ai-models:/models
+    depends_on:
+      - prometheus
+      - app
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ================================================
+  # 8. AUTO-HEALER — REMEDIATION
+  # ================================================
+  auto-healer:
+    build: ./auto-healer
+    container_name: auto-healer
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8001
+      - APP_URL=http://app:8000
+      - CHECK_INTERVAL=30
+      - SLACK_WEBHOOK=    # Yahan apna Slack webhook daalo (optional)
+      - EMAIL_HOST=smtp.gmail.com       # e.g. smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USERNAME=noumanrafique60@gmail.com
+      - EMAIL_PASSWORD=jvmi frzk upiv rexa
+      - ALERT_FROM_EMAIL=noumanrafique60@gmail.com
+      - ALERT_TO_EMAIL=noumanrafique60@gmail.com
+      - EMAIL_USE_TLS=true
+    depends_on:
+      - ai-service
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+
+    # ================================================
+  # 9. FILEBEAT — LOG COLLECTOR
+  # ================================================
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: filebeat
+    user: root
+    command: filebeat -e --strict.perms=false
+    volumes:
+      # Filebeat config
+      - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # Docker socket — containers ke logs padhne ke liye
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Docker logs folder
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - logstash
+      - elasticsearch
+    networks:
+      - monitoring
+    restart: unless-stopped

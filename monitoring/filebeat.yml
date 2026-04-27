@@ -1,0 +1,25 @@
+filebeat.inputs:
+  - type: docker
+    containers:
+      ids:
+        - "/var/lib/docker/containers/*/*.log"
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+processors:
+  - drop_event:
+      when:
+        not:
+          or:
+            - contains:
+                container.name: "fastapi-app"
+            - contains:
+                container.name: "ai-service"
+            - contains:
+                container.name: "auto-healer"
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: warning
