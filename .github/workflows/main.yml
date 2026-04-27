@@ -32,7 +32,7 @@ jobs:
           pip install -r app/requirements.txt
           pip install -r ai-service/requirements.txt
           pip install -r auto-healer/requirements.txt
-          pip install httpx
+          pip install "httpx<0.28"
 
       - name: Validate app health endpoint
         run: |
