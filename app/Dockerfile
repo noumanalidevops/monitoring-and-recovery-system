@@ -10,9 +10,11 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.1 \
     "uvicorn[standard]==0.24.0" \
     prometheus-client==0.19.0 \
-    requests==2.31.0
+    requests==2.31.0 \
+    jinja2==3.1.2
 
 COPY . .
+COPY templates ./templates
 
 EXPOSE 8000
 

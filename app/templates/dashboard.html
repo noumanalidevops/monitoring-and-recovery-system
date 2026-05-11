@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Healing System Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --line: #dce3ed;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #5b57d7;
+      --ok: #1f8a70;
+      --warn: #b7791f;
+      --bad: #b93859;
+      --shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+      --shadow-soft: 0 2px 8px rgba(15, 23, 42, 0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #e8edff 0, #f3f6fb 38%, #f3f6fb 100%);
+    }
+    .shell { max-width: 1460px; margin: 0 auto; padding: 20px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow-soft);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: grid; place-items: center; color: #fff; font-weight: 800;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    }
+    .title { font-size: 20px; font-weight: 800; }
+    .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .right-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .pill {
+      border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2);
+      padding: 6px 10px; font-size: 12px; font-weight: 600;
+    }
+    .btn {
+      border: 0; border-radius: 10px; padding: 10px 14px; color: #fff;
+      font-weight: 700; cursor: pointer; transition: .16s ease transform, .2s opacity;
+      box-shadow: var(--shadow-soft);
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #5b57d7, #4f46e5); }
+    .btn-secondary { background: linear-gradient(135deg, #7c3aed, #5b57d7); }
+    .btn-traffic { background: linear-gradient(135deg, #b7791f, #a16207); }
+    .btn-danger { background: linear-gradient(135deg, #be3458, #a61f45); }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat { padding: 14px; }
+    .label { color: var(--muted); font-size: 12px; margin-bottom: 7px; }
+    .value { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+    .value.sm { font-size: 20px; }
+    .main { margin-top: 12px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; }
+    .panel { padding: 14px; margin-bottom: 12px; }
+    .panel h3 { margin: 0 0 12px; font-size: 16px; }
+    .health-row {
+      border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #fff;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; margin-right: 8px; }
+    .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); } .dot.warn { background: var(--warn); }
+    .status { border-radius: 999px; border: 1px solid var(--line); padding: 4px 10px; font-size: 12px; font-weight: 700; background: var(--surface-2); }
+    .mode-switch { display: flex; gap: 8px; }
+    .mode-switch button {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .mode-switch button.active {
+      background: #ecebff;
+      border-color: #c7c3ff;
+      color: #4338ca;
+    }
+    .verdict {
+      border: 1px solid #dbeafe; background: #eff6ff; color: var(--ok);
+      border-radius: 12px; padding: 14px; text-align: center; font-size: 28px; font-weight: 800;
+      letter-spacing: -.02em;
+    }
+    .verdict.anomaly { border-color: #fecdd3; background: #fff1f3; color: var(--bad); animation: pulse 1.35s infinite; }
+    .verdict.warning { border-color: #fde68a; background: #fffbeb; color: #a16207; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(185,56,89,0);} 50% { box-shadow: 0 0 0 8px rgba(185,56,89,.13);} }
+    .mini-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .mini-card { padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+    .models { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .model { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 10px; }
+    .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .helper { margin-top: 8px; min-height: 16px; color: var(--muted); font-size: 12px; }
+    .ops-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:10px; }
+    .ops-item { border:1px solid var(--line); border-radius:10px; background:var(--surface-2); padding:10px; }
+    .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .chart-box { min-height: 230px; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface-2); }
+    .feature-item { margin-bottom: 10px; }
+    .bar { width: 100%; height: 12px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+    .fill { height: 100%; border-radius: 999px; }
+    .normal { background: var(--ok); } .medium { background: #8a7a1f; } .high { background: #a5651a; } .critical { background: var(--bad); }
+    .bottom { margin-top: 12px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px; }
+    .table-wrap { border: 1px solid var(--line); border-radius: 10px; max-height: 360px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
+    .row-ok { background: #f3fff9; } .row-bad { background: #fff5f7; }
+    .banner {
+      margin-top: 12px; padding: 14px; display: flex; flex-wrap: wrap; gap: 14px;
+      justify-content: space-between; align-items: center;
+    }
+    .meta { font-size: 12px; color: var(--muted); }
+    .progress { width: 220px; height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: linear-gradient(135deg, #5b57d7, #7c3aed); }
+    .toasts { position: fixed; right: 14px; bottom: 14px; display: grid; gap: 8px; z-index: 70; }
+    .toast { padding: 10px 12px; border-radius: 10px; color: #fff; font-size: 13px; box-shadow: var(--shadow); }
+    .toast.info { background: #5b57d7; } .toast.ok { background: #1f8a70; } .toast.bad { background: #b93859; }
+    .spinner { display:inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 999px; animation: spin 1s linear infinite; margin-right: 6px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 1160px) {
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .main, .bottom { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .shell { padding: 10px; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .controls, .charts, .models, .mini-grid { grid-template-columns: 1fr; }
+      .value { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="card header">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div>
+          <div class="title">AI Healing System</div>
+          <div class="subtitle">Real-time anomaly analytics and recovery monitoring</div>
+        </div>
+      </div>
+      <div class="right-tools">
+        <div id="clock" class="pill">--:--:--</div>
+        <div id="systemBadge" class="pill">System Status</div>
+        <button id="refreshToggle" class="btn btn-primary">Pause Refresh</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="card stat"><div class="label">Total Requests</div><div id="totalRequests" class="value">0</div></div>
+      <div class="card stat"><div class="label">Anomaly Rate</div><div id="anomalyRate" class="value">0%</div></div>
+      <div class="card stat"><div class="label">Models Confidence</div><div id="modelConfidence" class="value sm">N/A</div></div>
+      <div class="card stat"><div class="label">Active Incidents</div><div id="activeIncidents" class="value">0</div></div>
+    </section>
+
+    <section class="main">
+      <div>
+        <div class="card panel">
+          <h3>System Health</h3>
+          <div class="health-row"><span><span id="dotApp" class="dot bad"></span>App Status</span><span id="appStatus" class="status">Down</span></div>
+          <div class="health-row"><span><span id="dotAI" class="dot bad"></span>AI Service</span><span id="aiStatus" class="status">Down</span></div>
+          <div class="health-row"><span><span id="dotHealer" class="dot bad"></span>Auto-Healer</span><span id="healerStatus" class="status">Down</span></div>
+          <div class="health-row"><span><span id="dotModel" class="dot warn"></span>Model Status</span><span id="modelStatus" class="status">Not Trained</span></div>
+          <div class="health-row"><span><span id="dotStability" class="dot warn"></span>System Stability</span><span id="stabilityStatus" class="status">Unknown</span></div>
+        </div>
+
+        <div class="card panel">
+          <h3>AI Detection</h3>
+          <div id="verdict" class="verdict">SYSTEM NORMAL</div>
+          <div class="mini-grid">
+            <div class="mini-card"><div class="label">Anomaly Score</div><div id="anomalyScore" class="value sm">0.0000</div></div>
+            <div class="mini-card"><div class="label">Confidence</div><div id="confidence" class="value sm">N/A</div></div>
+          </div>
+          <div class="models">
+            <div class="model"><div class="label">Isolation Forest</div><div id="ifScore">N/A</div><div id="ifPred" class="meta">N/A</div></div>
+            <div class="model"><div class="label">LOF</div><div id="lofScore">N/A</div><div id="lofPred" class="meta">N/A</div></div>
+            <div class="model"><div class="label">One-Class SVM</div><div id="svmScore">N/A</div><div id="svmPred" class="meta">N/A</div></div>
+          </div>
+          <div id="lastChecked" class="meta" style="margin-top:10px;">Last checked: --</div>
+          <div id="severityText" class="meta" style="margin-top:4px;">Severity: NORMAL</div>
+        </div>
+
+        <div class="card panel">
+          <h3>Model Operations</h3>
+          <div class="ops-grid">
+            <div class="ops-item"><div class="label">Training Status</div><div id="trainingStatusText">Idle</div></div>
+            <div class="ops-item"><div class="label">Dataset Size</div><div id="datasetSize">0</div></div>
+            <div class="ops-item"><div class="label">Dataset Quality</div><div id="datasetQuality">0.00</div></div>
+            <div class="ops-item"><div class="label">Smoothing</div><div id="smoothingStatus">Enabled</div></div>
+            <div class="ops-item"><div class="label">False Positive Est.</div><div id="falsePositiveEstimate">0%</div></div>
+          </div>
+          <div class="meta" style="margin-top:10px;">Sensitivity: <span id="sensitivityText">IF:0.02 LOF:0.02 SVM:0.02</span></div>
+          <div class="meta" style="margin-top:4px;">Recent Retrain: <span id="retrainInfo">No history</span></div>
+        </div>
+
+        <div class="card panel">
+          <h3>Control Buttons</h3>
+          <div class="controls">
+            <button id="btnTrain" class="btn btn-primary">Train AI Model</button>
+            <button id="btnDetect" class="btn btn-secondary">Check Now</button>
+            <button id="btnTraffic" class="btn btn-traffic">Generate Traffic</button>
+            <button id="btnInject" class="btn btn-danger">Inject Anomaly</button>
+          </div>
+          <div id="actionState" class="helper"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card panel">
+          <h3>Live Metrics Charts</h3>
+          <div class="charts">
+            <div class="chart-box"><canvas id="errorChart"></canvas></div>
+            <div class="chart-box"><canvas id="latencyChart"></canvas></div>
+            <div class="chart-box"><canvas id="requestChart"></canvas></div>
+            <div class="chart-box"><canvas id="anomalyChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card panel">
+          <h3>Feature Deviation</h3>
+          <div id="explainSummary" class="meta" style="margin-bottom:8px;">Top contributor: N/A</div>
+          <div id="featureDeviation"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom">
+      <div class="card panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <h3 style="margin:0;">Detection History</h3>
+          <button id="toggleHistory" class="btn btn-secondary" style="font-size:12px;padding:8px 10px;">View All</button>
+        </div>
+        <div class="table-wrap" style="margin-top:10px;">
+          <table>
+            <thead><tr><th>Time</th><th>Verdict</th><th>Score</th><th>Confidence</th><th>Top Feature</th></tr></thead>
+            <tbody id="historyRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <h3 style="margin:0;">Incident Log</h3>
+          <div class="mode-switch">
+            <button id="modeReal" class="active">Real Actions</button>
+            <button id="modePredicted">Predicted Actions</button>
+          </div>
+        </div>
+        <div id="incidentMeta" class="meta" style="margin:8px 0;"></div>
+        <div id="incidents"></div>
+      </div>
+    </section>
+
+    <section class="card banner">
+      <div>
+        <strong id="trend">→ Stable</strong>
+        <div id="prediction" class="meta">Prediction unavailable</div>
+      </div>
+      <div>
+        <strong id="risk">Anomaly Risk: LOW</strong>
+        <div id="lastUpdated" class="meta">Last updated: 0s ago</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="meta">Confidence</span>
+        <div class="progress"><span id="predictConfidence" style="width:0%;"></span></div>
+      </div>
+    </section>
+  </div>
+  <div class="toasts" id="toasts"></div>
+
+  <script>
+    const ENDPOINTS = {
+      app: "",
+      ai: "/api/ai",
+      healer: "/api/healer",
+    };
+    const MAX_POINTS = 20;
+    const chartData = { labels: [], error: [], latency: [], request: [], anomaly: [] };
+    const chartRefs = {};
+    let isAutoRefresh = true;
+    let showAllHistory = false;
+    let incidentMode = "real";
+    let lastUpdatedAt = Date.now();
+    let latestDetect = null;
+
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const safe = (val, fallback = "N/A") => (val === undefined || val === null || val === "" ? fallback : val);
+    const asNum = (val, fallback = 0) => (Number.isFinite(Number(val)) ? Number(val) : fallback);
+
+    async function fetchJson(url, options = {}) {
+      try {
+        const res = await fetch(url, options);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return await res.json();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function toast(message, type = "info") {
+      const node = document.createElement("div");
+      node.className = "toast " + type;
+      node.textContent = message;
+      $("toasts").appendChild(node);
+      setTimeout(() => node.remove(), 3600);
+    }
+
+    function dot(id, status) {
+      const n = $(id);
+      n.classList.remove("ok", "bad", "warn");
+      n.classList.add(status);
+    }
+
+    function animateNumber(id, target, suffix = "") {
+      const node = $(id);
+      const start = Number(node.dataset.n || 0);
+      const end = Number(target || 0);
+      const startedAt = performance.now();
+      const duration = 520;
+      function frame(ts) {
+        const t = Math.min(1, (ts - startedAt) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const current = start + (end - start) * eased;
+        node.dataset.n = String(current);
+        node.textContent = Number.isInteger(end) ? Math.round(current) + suffix : current.toFixed(2) + suffix;
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function initCharts() {
+      const base = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 350 },
+        plugins: { legend: { labels: { boxWidth: 10, color: "#475569" } } },
+        scales: {
+          x: { ticks: { color: "#64748b", maxTicksLimit: 6 }, grid: { color: "#e2e8f0" } },
+          y: { ticks: { color: "#64748b" }, grid: { color: "#e2e8f0" } },
+        },
+      };
+      chartRefs.error = new Chart($("errorChart"), {
+        type: "line",
+        data: { labels: chartData.labels, datasets: [{ label: "Error Rate %", data: chartData.error, borderColor: "#b93859", tension: 0.32, pointRadius: 0 }] },
+        options: base,
+      });
+      chartRefs.latency = new Chart($("latencyChart"), {
+        type: "line",
+        data: { labels: chartData.labels, datasets: [{ label: "Response Latency ms", data: chartData.latency, borderColor: "#5b57d7", tension: 0.32, pointRadius: 0 }] },
+        options: base,
+      });
+      chartRefs.request = new Chart($("requestChart"), {
+        type: "line",
+        data: { labels: chartData.labels, datasets: [{ label: "Request Rate req/s", data: chartData.request, borderColor: "#1f8a70", tension: 0.32, pointRadius: 0 }] },
+        options: base,
+      });
+      chartRefs.anomaly = new Chart($("anomalyChart"), {
+        type: "line",
+        data: {
+          labels: chartData.labels,
+          datasets: [
+            { label: "Anomaly Score", data: chartData.anomaly, borderColor: "#7c3aed", tension: 0.32, pointRadius: 0 },
+            { label: "Threshold -0.3", data: Array(MAX_POINTS).fill(-0.3), borderColor: "#b7791f", borderDash: [6, 6], pointRadius: 0 },
+          ],
+        },
+        options: base,
+      });
+    }
+
+    function pushChartPoint(errorRate, latencyMs, requestRate, anomalyScore) {
+      chartData.labels.push(new Date().toLocaleTimeString());
+      chartData.error.push(errorRate);
+      chartData.latency.push(latencyMs);
+      chartData.request.push(requestRate);
+      chartData.anomaly.push(anomalyScore);
+      Object.keys(chartData).forEach((key) => {
+        if (chartData[key].length > MAX_POINTS) chartData[key].shift();
+      });
+      chartRefs.error.data.labels = chartData.labels;
+      chartRefs.error.data.datasets[0].data = chartData.error;
+      chartRefs.latency.data.labels = chartData.labels;
+      chartRefs.latency.data.datasets[0].data = chartData.latency;
+      chartRefs.request.data.labels = chartData.labels;
+      chartRefs.request.data.datasets[0].data = chartData.request;
+      chartRefs.anomaly.data.labels = chartData.labels;
+      chartRefs.anomaly.data.datasets[0].data = chartData.anomaly;
+      chartRefs.anomaly.data.datasets[1].data = Array(chartData.labels.length).fill(-0.3);
+      chartRefs.error.update();
+      chartRefs.latency.update();
+      chartRefs.request.update();
+      chartRefs.anomaly.update();
+    }
+
+    function renderDeviations(explain) {
+      const host = $("featureDeviation");
+      host.innerHTML = "";
+      const dev = explain && explain.feature_deviations ? explain.feature_deviations : null;
+      const top = explain && explain.top_contributor ? explain.top_contributor : "N/A";
+      const desc = explain && explain.explanation ? explain.explanation : "No explanation available.";
+      $("explainSummary").textContent = `Top contributor: ${top} | ${desc}`;
+      if (!dev) {
+        host.innerHTML = '<div class="meta">No feature explanation available.</div>';
+        return;
+      }
+      ["error_rate", "avg_latency", "request_rate", "error_gauge"].forEach((name) => {
+        const item = dev[name] || {};
+        const sev = String(safe(item.severity, "NORMAL")).toLowerCase();
+        const cls = sev.includes("critical") ? "critical" : sev.includes("high") ? "high" : sev.includes("medium") ? "medium" : "normal";
+        const z = Math.min(100, Math.abs(asNum(item.z_score)) * 5);
+        const row = document.createElement("div");
+        row.className = "feature-item";
+        row.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:13px;">${name}</strong>
+            <span class="status">${safe(item.severity, "NORMAL")} | z:${asNum(item.z_score).toFixed(2)}</span>
+          </div>
+          <div class="bar"><span class="fill ${cls}" style="width:${z}%;"></span></div>
+        `;
+        host.appendChild(row);
+      });
+    }
+
+    function renderIncidents(incidentsPayload) {
+      const host = $("incidents");
+      const realRows = incidentsPayload && Array.isArray(incidentsPayload.real_actions) ? incidentsPayload.real_actions : [];
+      const predictedRows = incidentsPayload && Array.isArray(incidentsPayload.predicted_actions) ? incidentsPayload.predicted_actions : [];
+      const rows = incidentMode === "real" ? realRows : predictedRows;
+      const realAvailable = Boolean(incidentsPayload && incidentsPayload.real_available);
+      $("incidentMeta").textContent = incidentMode === "real"
+        ? (realAvailable ? "Showing real auto-healer executed actions." : "Real auto-healer API unavailable.")
+        : "Showing predicted actions derived from AI anomaly history.";
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        host.innerHTML = `<div class="meta">${incidentMode === "real" ? "No real actions recorded yet." : "No predicted incidents - System Healthy ✓"}</div>`;
+        animateNumber("activeIncidents", 0);
+        return;
+      }
+      host.innerHTML = rows.slice(0, 10).map((x) => `
+        <div class="health-row">
+          <div>
+            <div><strong>${safe(x.action || x.remedy || "ALERT")}</strong></div>
+            <div class="meta">${safe(x.timestamp || x.time, "--")} | ${safe(x.duration, "n/a")}</div>
+          </div>
+          <span class="status">${safe(x.status, "logged")}</span>
+        </div>
+      `).join("");
+      animateNumber("activeIncidents", rows.length);
+    }
+
+    function renderHistory(historyPayload, explainPayload) {
+      const tbody = $("historyRows");
+      tbody.innerHTML = "";
+      const rows = historyPayload && historyPayload.history ? historyPayload.history : [];
+      const topFeature = explainPayload && explainPayload.top_contributor ? explainPayload.top_contributor : "N/A";
+      const limit = showAllHistory ? rows.length : 10;
+      rows.slice(0, limit).forEach((r) => {
+        const tr = document.createElement("tr");
+        tr.className = r.is_anomaly ? "row-bad" : "row-ok";
+        tr.innerHTML = `
+          <td>${new Date(r.timestamp || Date.now()).toLocaleString()}</td>
+          <td>${safe(r.verdict, "N/A")}</td>
+          <td>${asNum(r.anomaly_score).toFixed(4)}</td>
+          <td>${safe(r.confidence, "N/A")}</td>
+          <td>${topFeature}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function setHealth(appHealth, aiHealth, healerHealth) {
+      const appOk = !!(appHealth && appHealth.status === "healthy");
+      const aiOk = !!(aiHealth && aiHealth.status !== "down");
+      const healerOk = !!(healerHealth && (healerHealth.status === "healthy" || healerHealth.status === "active" || healerHealth.status === "ok"));
+      const trained = !!(aiHealth && aiHealth.model_trained);
+      dot("dotApp", appOk ? "ok" : "bad");
+      dot("dotAI", aiOk ? "ok" : "bad");
+      dot("dotHealer", healerOk ? "ok" : "bad");
+      dot("dotModel", trained ? "ok" : "warn");
+      $("appStatus").textContent = appOk ? "Healthy" : "Down";
+      $("aiStatus").textContent = aiOk ? (aiHealth.training_in_progress ? "Training" : "Ready") : "Down";
+      $("healerStatus").textContent = healerOk ? "Active" : "Down";
+      $("modelStatus").textContent = trained ? "Trained ✓" : "Not Trained ✗";
+      dot("dotStability", trained ? "ok" : "warn");
+      $("stabilityStatus").textContent = trained ? "Stable Baseline" : "Needs Baseline";
+
+      const anomaly = latestDetect && latestDetect.is_anomaly;
+      const badge = $("systemBadge");
+      if (appOk && aiOk && healerOk && !anomaly) {
+        badge.textContent = "System Status: Normal";
+        badge.style.background = "#ecfdf5";
+        badge.style.color = "var(--ok)";
+        badge.style.borderColor = "#a7f3d0";
+      } else {
+        badge.textContent = "System Status: Attention";
+        badge.style.background = "#fff1f3";
+        badge.style.color = "var(--bad)";
+        badge.style.borderColor = "#fecdd3";
+      }
+    }
+
+    function setDetection(detect) {
+      if (!detect || detect.status === "unavailable") {
+        $("verdict").className = "verdict";
+        $("verdict").textContent = "SYSTEM NORMAL";
+        $("anomalyScore").textContent = "N/A";
+        $("confidence").textContent = "N/A";
+        return;
+      }
+      if (detect.status === "model_not_trained") {
+        $("verdict").className = "verdict";
+        $("verdict").textContent = "MODEL TRAINING IN PROGRESS";
+        $("anomalyScore").textContent = "N/A";
+        $("confidence").textContent = "N/A";
+        $("modelConfidence").textContent = "Training";
+        return;
+      }
+      latestDetect = detect;
+      const anomaly = !!detect.is_anomaly;
+      const warning = !!detect.is_warning;
+      $("verdict").className = anomaly ? "verdict anomaly" : (warning ? "verdict warning" : "verdict");
+      $("verdict").textContent = anomaly ? "CONFIRMED ANOMALY" : (warning ? "WARNING: POTENTIAL ANOMALY" : "SYSTEM NORMAL");
+      $("anomalyScore").textContent = asNum(detect.anomaly_score).toFixed(4);
+      const confText = `${safe(detect.confidence, "N/A")} (${asNum(detect.confidence_percent, 0).toFixed(1)}%)`;
+      $("confidence").textContent = confText;
+      $("modelConfidence").textContent = confText;
+      $("lastChecked").textContent = "Last checked: " + new Date().toLocaleString();
+      $("severityText").textContent = "Severity: " + safe(detect.severity, "NORMAL");
+
+      const m = detect.individual_models || {};
+      $("ifScore").textContent = safe(m.isolation_forest && m.isolation_forest.score);
+      $("ifPred").textContent = safe(m.isolation_forest && m.isolation_forest.prediction);
+      $("lofScore").textContent = safe(m.local_outlier_factor && m.local_outlier_factor.score);
+      $("lofPred").textContent = safe(m.local_outlier_factor && m.local_outlier_factor.prediction);
+      $("svmScore").textContent = safe(m.one_class_svm && m.one_class_svm.score);
+      $("svmPred").textContent = safe(m.one_class_svm && m.one_class_svm.prediction);
+
+      if (anomaly) {
+        toast("Anomaly detected by AI service", "bad");
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Anomaly Detected", { body: "AI service flagged anomaly." });
+        }
+      }
+    }
+
+    function renderOps(stats, aiHealth) {
+      const t = stats && stats.training_data ? stats.training_data : {};
+      const m = stats && stats.models ? stats.models : {};
+      const retrainHistory = stats && Array.isArray(stats.retrain_history) ? stats.retrain_history : [];
+      const latest = retrainHistory.length ? retrainHistory[0] : null;
+      $("trainingStatusText").textContent = aiHealth && aiHealth.training_in_progress ? "Training" : "Idle";
+      $("datasetSize").textContent = safe(t.samples_used, 0);
+      $("datasetQuality").textContent = asNum(t.dataset_quality, 0).toFixed(2);
+      const smoothEnabled = stats && stats.smoothing && stats.smoothing.enabled;
+      $("smoothingStatus").textContent = smoothEnabled ? `Enabled (${safe(stats.smoothing.window_size, 0)})` : "Disabled";
+      const ifc = m.isolation_forest ? m.isolation_forest.contamination : 0;
+      const lofc = m.local_outlier_factor ? m.local_outlier_factor.contamination : 0;
+      const svmn = m.one_class_svm ? m.one_class_svm.nu : 0;
+      $("sensitivityText").textContent = `IF:${ifc} LOF:${lofc} SVM:${svmn}`;
+      const dStats = stats && stats.detection_stats ? stats.detection_stats : {};
+      $("falsePositiveEstimate").textContent = safe(dStats.false_positive_estimate, "0%");
+      if (latest) {
+        $("retrainInfo").textContent = `${safe(latest.status, "n/a")} | ${safe(latest.reason, "n/a")} | ${new Date(latest.timestamp).toLocaleString()}`;
+      } else {
+        $("retrainInfo").textContent = "No history";
+      }
+      const quality = asNum(t.dataset_quality, 0);
+      if (quality >= 0.75) {
+        dot("dotStability", "ok");
+        $("stabilityStatus").textContent = "Stable";
+      } else if (quality >= 0.5) {
+        dot("dotStability", "warn");
+        $("stabilityStatus").textContent = "Moderate";
+      } else {
+        dot("dotStability", "bad");
+        $("stabilityStatus").textContent = "Unstable";
+      }
+    }
+
+    function setTrend(pred) {
+      if (!pred) return;
+      const trend = String(safe(pred.trend, "stable")).toLowerCase();
+      let arrow = "→";
+      let color = "var(--warn)";
+      if (trend.includes("degrad")) { arrow = "↑"; color = "var(--bad)"; }
+      if (trend.includes("improv")) { arrow = "↓"; color = "var(--ok)"; }
+      $("trend").innerHTML = `<span style="color:${color};">${arrow} ${safe(pred.trend, "Stable")}</span>`;
+      $("risk").textContent = "Anomaly Risk: " + String(safe(pred.anomaly_risk, "LOW")).toUpperCase();
+      $("prediction").textContent = safe(pred.prediction, "Prediction unavailable");
+      const confidence = Math.max(0, Math.min(100, asNum(pred.confidence) * 100));
+      $("predictConfidence").style.width = confidence + "%";
+    }
+
+    async function refreshAllData() {
+      const [appRoot, appHealth, aiHealth, detect, explain, predict, stats, history, healerHealth, incidents] = await Promise.all([
+        fetchJson(`${ENDPOINTS.app}/`),
+        fetchJson(`${ENDPOINTS.app}/health`),
+        fetchJson(`${ENDPOINTS.ai}/health`),
+        fetchJson(`${ENDPOINTS.ai}/detect`),
+        fetchJson(`${ENDPOINTS.ai}/explain`),
+        fetchJson(`${ENDPOINTS.ai}/predict`),
+        fetchJson(`${ENDPOINTS.ai}/stats`),
+        fetchJson(`${ENDPOINTS.ai}/history`),
+        fetchJson(`${ENDPOINTS.healer}/health`),
+        fetchJson(`${ENDPOINTS.healer}/incidents`),
+      ]);
+
+      setHealth(appHealth, aiHealth, healerHealth);
+      setDetection(detect);
+      setTrend(predict);
+      renderDeviations(explain);
+      renderHistory(history, explain);
+      renderIncidents(incidents);
+      renderOps(stats, aiHealth);
+
+      const detectionStats = stats && stats.detection_stats ? stats.detection_stats : {};
+      animateNumber("totalRequests", asNum(detectionStats.total_detections, 0));
+      $("anomalyRate").textContent = safe(detectionStats.anomaly_rate, "0%");
+
+      const f = detect && detect.current_features ? detect.current_features : {};
+      pushChartPoint(
+        asNum(f.error_rate, 0),
+        asNum(f.avg_latency, 0) * 1000,
+        asNum(f.request_rate, 0),
+        asNum(detect && detect.anomaly_score, 0)
+      );
+
+      lastUpdatedAt = Date.now();
+      if (!appRoot) toast("Main app unavailable", "bad");
+      if (!aiHealth) toast("AI service unavailable", "bad");
+    }
+
+    function setButtonsDisabled(disabled) {
+      ["btnTrain", "btnDetect", "btnTraffic", "btnInject"].forEach((id) => { $(id).disabled = disabled; });
+    }
+
+    async function trainModel() {
+      setButtonsDisabled(true);
+      $("actionState").innerHTML = '<span class="spinner"></span>Training... collecting stable baseline samples (3-5 min)';
+      const result = await fetchJson(`${ENDPOINTS.ai}/train`, { method: "POST" });
+      if (result && String(result.status || "").toLowerCase().includes("trained")) {
+        toast(`Training complete (${safe(result.samples_used, 0)} samples, quality ${asNum(result.dataset_quality, 0).toFixed(2)})`, "ok");
+      } else {
+        toast(`Training failed: ${safe(result && result.error, "unknown")}`, "bad");
+      }
+      $("actionState").textContent = "";
+      setButtonsDisabled(false);
+      await refreshAllData();
+    }
+
+    async function detectNow() {
+      setButtonsDisabled(true);
+      $("actionState").innerHTML = '<span class="spinner"></span>Checking anomaly now';
+      await fetchJson(`${ENDPOINTS.ai}/detect`);
+      $("actionState").textContent = "";
+      setButtonsDisabled(false);
+      await refreshAllData();
+    }
+
+    async function trafficBurst(count, delayMs, message) {
+      setButtonsDisabled(true);
+      for (let i = 1; i <= count; i += 1) {
+        $("actionState").innerHTML = `<span class="spinner"></span>${message} ${i}/${count}`;
+        await fetchJson(`${ENDPOINTS.app}/data`);
+        await sleep(delayMs);
+      }
+      $("actionState").textContent = "";
+      setButtonsDisabled(false);
+      toast(`${message} complete`, "info");
+      await refreshAllData();
+    }
+
+    function bindActions() {
+      $("btnTrain").addEventListener("click", trainModel);
+      $("btnDetect").addEventListener("click", detectNow);
+      $("btnTraffic").addEventListener("click", () => trafficBurst(20, 170, "Generating traffic"));
+      $("btnInject").addEventListener("click", () => trafficBurst(100, 25, "Injecting anomaly traffic"));
+      $("toggleHistory").addEventListener("click", async () => {
+        showAllHistory = !showAllHistory;
+        $("toggleHistory").textContent = showAllHistory ? "Show Last 10" : "View All";
+        const history = await fetchJson(`${ENDPOINTS.ai}/history`);
+        const explain = await fetchJson(`${ENDPOINTS.ai}/explain`);
+        renderHistory(history, explain);
+      });
+      $("refreshToggle").addEventListener("click", () => {
+        isAutoRefresh = !isAutoRefresh;
+        $("refreshToggle").textContent = isAutoRefresh ? "Pause Refresh" : "Resume Refresh";
+        toast(isAutoRefresh ? "Auto-refresh resumed" : "Auto-refresh paused", "info");
+      });
+      $("modeReal").addEventListener("click", async () => {
+        incidentMode = "real";
+        $("modeReal").classList.add("active");
+        $("modePredicted").classList.remove("active");
+        const incidents = await fetchJson(`${ENDPOINTS.healer}/incidents`);
+        renderIncidents(incidents);
+      });
+      $("modePredicted").addEventListener("click", async () => {
+        incidentMode = "predicted";
+        $("modePredicted").classList.add("active");
+        $("modeReal").classList.remove("active");
+        const incidents = await fetchJson(`${ENDPOINTS.healer}/incidents`);
+        renderIncidents(incidents);
+      });
+    }
+
+    function startTimers() {
+      setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString(); }, 1000);
+      setInterval(() => { $("lastUpdated").textContent = `Last updated: ${Math.floor((Date.now() - lastUpdatedAt) / 1000)}s ago`; }, 1000);
+      setInterval(() => { if (isAutoRefresh) refreshAllData(); }, 15000);
+      setInterval(() => { if (isAutoRefresh) fetchJson(`${ENDPOINTS.ai}/predict`).then(setTrend); }, 30000);
+    }
+
+    (async function init() {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+      initCharts();
+      bindActions();
+      startTimers();
+      await refreshAllData();
+    })();
+  </script>
+</body>
+</html>
