@@ -211,7 +211,6 @@
             <div class="ops-item"><div class="label">Dataset Size</div><div id="datasetSize">0</div></div>
             <div class="ops-item"><div class="label">Dataset Quality</div><div id="datasetQuality">0.00</div></div>
             <div class="ops-item"><div class="label">Smoothing</div><div id="smoothingStatus">Enabled</div></div>
-            <div class="ops-item"><div class="label">False Positive Est.</div><div id="falsePositiveEstimate">0%</div></div>
           </div>
           <div class="meta" style="margin-top:10px;">Sensitivity: <span id="sensitivityText">IF:0.02 LOF:0.02 SVM:0.02</span></div>
           <div class="meta" style="margin-top:4px;">Recent Retrain: <span id="retrainInfo">No history</span></div>
@@ -241,7 +240,6 @@
         </div>
         <div class="card panel">
           <h3>Feature Deviation</h3>
-          <div id="explainSummary" class="meta" style="margin-bottom:8px;">Top contributor: N/A</div>
           <div id="featureDeviation"></div>
         </div>
       </div>
@@ -418,9 +416,6 @@
       const host = $("featureDeviation");
       host.innerHTML = "";
       const dev = explain && explain.feature_deviations ? explain.feature_deviations : null;
-      const top = explain && explain.top_contributor ? explain.top_contributor : "N/A";
-      const desc = explain && explain.explanation ? explain.explanation : "No explanation available.";
-      $("explainSummary").textContent = `Top contributor: ${top} | ${desc}`;
       if (!dev) {
         host.innerHTML = '<div class="meta">No feature explanation available.</div>';
         return;
@@ -579,8 +574,6 @@
       const lofc = m.local_outlier_factor ? m.local_outlier_factor.contamination : 0;
       const svmn = m.one_class_svm ? m.one_class_svm.nu : 0;
       $("sensitivityText").textContent = `IF:${ifc} LOF:${lofc} SVM:${svmn}`;
-      const dStats = stats && stats.detection_stats ? stats.detection_stats : {};
-      $("falsePositiveEstimate").textContent = safe(dStats.false_positive_estimate, "0%");
       if (latest) {
         $("retrainInfo").textContent = `${safe(latest.status, "n/a")} | ${safe(latest.reason, "n/a")} | ${new Date(latest.timestamp).toLocaleString()}`;
       } else {
